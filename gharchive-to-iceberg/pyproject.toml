@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "github-archive-to-iceberg"
+version = "0.1.0"
+description = "Script to download GitHub Archive data and store in Iceberg format"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "alrocar", email = "alrocar@tinybird.co"},
+]
+dependencies = [
+    "pyspark==3.5.0",
+    "requests>=2.28.0",
+    "pyarrow>=12.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+]
+
+[tool.setuptools]
+py-modules = ["src"]
+
+[tool.black]
+line-length = 100 
