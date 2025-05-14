@@ -11,7 +11,7 @@ SQL >
         toDateTime64(created_at, 3) as created_at,
         action as action,
         number as number
-    FROM iceberg('s3://tinybird-gharchive/iceberg/db/github_events', {{tb_secret('aws_access_key_id', 'test')}}, {{tb_secret('aws_secret_access_key', 'test')}})
+    FROM iceberg('s3://tinybird-gharchive/iceberg/db/github_events', {{tb_secret('aws_access_key_id')}}, {{tb_secret('aws_secret_access_key')}})
     WHERE 
     created_at > {{DateTime(from_date)}}
     AND created_at <= {{DateTime(to_date)}}
