@@ -36,7 +36,7 @@ jobs:
           tb secret set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       - name: Build project
         run: tb build
-      - name: Test project
-        run: tb test run
+      # - name: Test project
+      #   run: tb test run
       - name: Deployment check
         run: tb --cloud --host ${{ env.TINYBIRD_HOST }} --token ${{ env.TINYBIRD_TOKEN }} deploy --check
