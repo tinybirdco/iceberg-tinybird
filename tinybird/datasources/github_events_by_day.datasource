@@ -1,0 +1,11 @@
+DESCRIPTION >
+    Materialized counts of GitHub Watch events (stars) by repository and date
+
+SCHEMA >
+    `date` Date,
+    `repo_name` String,
+    `watch_count` AggregateFunction(count)
+
+ENGINE "AggregatingMergeTree"
+ENGINE_PARTITION_KEY "toYYYYMM(date)"
+ENGINE_SORTING_KEY "date, repo_name"

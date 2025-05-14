@@ -1,0 +1,15 @@
+DESCRIPTION >
+    Materialize GitHub Watch events (stars) count by repository and date
+
+NODE watch_events_count
+SQL >
+    SELECT 
+        toDate(created_at) as date,
+        repo_name,
+        countState() as watch_count
+    FROM github_events_historic
+    WHERE event_type = 'WatchEvent'
+    GROUP BY date, repo_name
+
+TYPE MATERIALIZED
+DATASOURCE github_events_by_day

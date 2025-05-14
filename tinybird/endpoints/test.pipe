@@ -1,0 +1,8 @@
+NODE endpoint
+SQL >
+    %
+    SELECT min(created_at)
+    FROM iceberg('s3://tinybird-gharchive/iceberg/db/github_events', {{tb_secret('aws_access_key_id')}}, {{tb_secret('aws_secret_access_key')}})
+    --where toDate(created_at) > '2025-05-01'
+
+TYPE endpoint
