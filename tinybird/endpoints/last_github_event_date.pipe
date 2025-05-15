@@ -1,0 +1,13 @@
+TOKEN read_token READ
+
+NODE last_date
+SQL >
+    SELECT last_date
+    FROM
+    (
+        SELECT max(created_at) last_date
+        FROM github_events
+        UNION ALL
+        SELECT now() - interval 1 month as last_date
+    )
+    ORDER BY last_date DESC LIMIT 1
