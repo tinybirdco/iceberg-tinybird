@@ -46,6 +46,10 @@ jobs:
         run: |
           cd gharchive-to-iceberg
           ./ingest_missing_hours.sh
+
+      - name: Copy data to Tinybird
+        run: |
+          tb --token $TINYBIRD_TOKEN --host $TINYBIRD_HOST --cloud copy run cp_github_events_rt --wait
           
       - name: Run data ingestion script (dry-run mode)
         if: ${{ inputs.dry_run }}
