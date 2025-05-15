@@ -7,6 +7,7 @@ SQL >
     (
         SELECT max(created_at) last_date
         FROM github_events_rt
+        UNION ALL
         SELECT max(created_at) last_date
         FROM github_events
         UNION ALL
