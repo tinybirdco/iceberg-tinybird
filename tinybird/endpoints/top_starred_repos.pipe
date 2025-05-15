@@ -1,0 +1,17 @@
+DESCRIPTION >
+    Returns the most starred repositories for a given time period
+
+NODE endpoint
+SQL >
+    %
+    SELECT 
+        repo_name,
+        countMerge(watch_count) as stars
+    FROM github_events_by_day
+    WHERE 
+        date BETWEEN {{Date(start_date, '2020-04-12')}} AND {{Date(end_date, '2020-04-13')}}
+    GROUP BY repo_name
+    ORDER BY stars DESC
+    LIMIT {{Int32(limit, 10)}}
+
+TYPE endpoint
