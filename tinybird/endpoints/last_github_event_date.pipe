@@ -7,6 +7,8 @@ SQL >
     (
         SELECT max(created_at) last_date
         FROM github_events_rt
+        SELECT max(created_at) last_date
+        FROM github_events
         UNION ALL
         SELECT now() - interval 1 month as last_date
     )
