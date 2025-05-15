@@ -7,7 +7,7 @@ SQL >
         toDate(created_at) as date,
         repo_name,
         countState() as watch_count
-    FROM github_events_historic
+    FROM github_events
     WHERE event_type = 'WatchEvent'
     GROUP BY date, repo_name
 
