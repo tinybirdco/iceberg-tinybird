@@ -1,15 +1,15 @@
 #!/bin/bash
 
 # Simple script to load one GitHub Archive file per day for a date range
-# Usage: ./load_daily.sh 2023-01-01 2023-01-31
+# Usage: ./load_daily.sh 2024-05-01 2025-05-15
 
 START_DATE=$1
 END_DATE=$2
-HOUR=3  # Fixed hour to use for each day
+# Remove fixed hour
 
 if [ -z "$START_DATE" ] || [ -z "$END_DATE" ]; then
   echo "Usage: $0 START_DATE END_DATE"
-  echo "Example: $0 2023-01-01 2023-01-31"
+  echo "Example: $0 2024-05-01 2025-05-15"
   exit 1
 fi
 
@@ -45,8 +45,11 @@ end_condition=$(add_days "$END_DATE" 1)
 
 current_date=$START_DATE
 while [ "$current_date" != "$end_condition" ]; do
-  echo "Processing $current_date hour $HOUR"
-  python -m src.github_archive_to_iceberg --date "$current_date" --hour "$HOUR"
+  # Iterate through all hours for each day
+  for hour in {0..23}; do
+    echo "Processing $current_date hour $hour"
+    python -m src.github_archive_to_iceberg --date "$current_date" --hour "$hour"
+  done
   current_date=$(next_date "$current_date")
 done
 

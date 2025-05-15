@@ -1,4 +1,5 @@
 gharchive-to-iceberg/tmp
+*.log
 .env
 env
 *.egg-info/
