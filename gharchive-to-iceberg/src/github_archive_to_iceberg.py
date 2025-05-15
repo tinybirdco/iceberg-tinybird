@@ -62,9 +62,13 @@ def initialize_spark():
             .config("spark.sql.defaultCatalog", "iceberg")
             .config("spark.sql.parquet.columnarReaderBatchSize", 1024)
             .config("spark.sql.parquet.filterPushdown", "true")
-            .config("spark.executor.memory", "8g")
+            .config("spark.executor.memory", "16g")
+            .config("spark.executor.cores", "4")
             .config("spark.memory.offHeap.enabled", "true")
-            .config("spark.memory.offHeap.size", "2g"))
+            .config("spark.memory.offHeap.size", "4g")
+            .config("spark.sql.shuffle.partitions", "200")
+            .config("spark.default.parallelism", "100")
+            .config("spark.driver.memory", "8g"))
     
     # Add S3 specific configuration
     builder = (builder
