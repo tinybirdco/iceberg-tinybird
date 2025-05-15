@@ -1,3 +1,5 @@
+TOKEN read_token READ
+
 DESCRIPTION >
     Returns the most starred repositories for a given time period
 

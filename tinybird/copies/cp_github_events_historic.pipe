@@ -8,13 +8,16 @@ SQL >
         type as event_type,
         actor.login as actor_login,
         repo.name as repo_name,
-        toDateTime64(created_at, 3) as created_at,
-        action as action,
-        number as number
-    FROM iceberg('s3://tinybird-gharchive/iceberg/db/github_events', {{tb_secret('aws_access_key_id')}}, {{tb_secret('aws_secret_access_key')}})
+        assumeNotNull(toDateTime64(created_at, 3)) as created_at,
+        action as action
+    FROM iceberg(
+        's3://tinybird-gharchive/iceberg/db/github_events',
+        {{tb_secret('aws_access_key_id')}},
+        {{tb_secret('aws_secret_access_key')}}
+    )
     WHERE 
     created_at > {{DateTime(from_date)}}
     AND created_at <= {{DateTime(to_date)}}
 
 TYPE COPY
-TARGET_DATASOURCE github_events_historic
+TARGET_DATASOURCE github_events
