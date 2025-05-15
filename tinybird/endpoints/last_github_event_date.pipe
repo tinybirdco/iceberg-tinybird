@@ -11,3 +11,5 @@ SQL >
         SELECT now() - interval 1 month as last_date
     )
     ORDER BY last_date DESC LIMIT 1
+
+TYPE endpoint
