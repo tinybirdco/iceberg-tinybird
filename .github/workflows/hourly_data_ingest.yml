@@ -59,4 +59,5 @@ jobs:
             
             # Only copy data to Tinybird if not in dry-run mode
             cd ..
-            tb --token $TINYBIRD_TOKEN --host $TINYBIRD_HOST --cloud copy run cp_github_events_rt --wait 
+            tb --token $TINYBIRD_TOKEN --host $TINYBIRD_HOST --cloud copy run cp_github_events_rt --wait
+          fi 
