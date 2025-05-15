@@ -2,7 +2,7 @@ name: Hourly GitHub Archive Data Ingest
 
 on:
   schedule:
-    # Run at minute 10 of every hour
+    # Run at minute 5 of every hour
     - cron: '5 * * * *'
   workflow_dispatch:  # Allow manual triggering
     inputs:
@@ -11,6 +11,11 @@ on:
         required: false
         type: boolean
         default: false
+
+# Add concurrency control to prevent overlapping runs
+concurrency:
+  group: github-archive-ingest
+  cancel-in-progress: false
 
 jobs:
   ingest-github-events:
@@ -41,18 +46,17 @@ jobs:
       - name: Make script executable
         run: chmod +x gharchive-to-iceberg/ingest_missing_hours.sh
         
-      - name: Run data ingestion script (normal mode)
-        if: ${{ !inputs.dry_run }}
+      # Combined step for both normal and dry-run modes
+      - name: Run data ingestion script
         run: |
           cd gharchive-to-iceberg
-          ./ingest_missing_hours.sh
-
-      - name: Copy data to Tinybird
-        run: |
-          tb --token $TINYBIRD_TOKEN --host $TINYBIRD_HOST --cloud copy run cp_github_events_rt --wait
-          
-      - name: Run data ingestion script (dry-run mode)
-        if: ${{ inputs.dry_run }}
-        run: |
-          cd gharchive-to-iceberg
-          ./ingest_missing_hours.sh --dry-run 
+          if [ "${{ inputs.dry_run }}" == "true" ]; then
+            echo "Running in dry-run mode"
+            ./ingest_missing_hours.sh --dry-run
+          else
+            echo "Running in normal mode"
+            ./ingest_missing_hours.sh
+            
+            # Only copy data to Tinybird if not in dry-run mode
+            cd ..
+            tb --token $TINYBIRD_TOKEN --host $TINYBIRD_HOST --cloud copy run cp_github_events_rt --wait 
