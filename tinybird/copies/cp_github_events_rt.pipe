@@ -20,4 +20,4 @@ SQL >
     {% end %}
 
 TYPE COPY
-TARGET_DATASOURCE github_events
+TARGET_DATASOURCE github_events_rt

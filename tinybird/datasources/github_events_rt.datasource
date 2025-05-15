@@ -6,4 +6,5 @@ SCHEMA >
     action Nullable(String) `json:$.action`
 
 ENGINE "MergeTree"
+ENGINE_TTL toDate(created_at) + INTERVAL 1 MONTH
 ENGINE_SORTING_KEY created_at
