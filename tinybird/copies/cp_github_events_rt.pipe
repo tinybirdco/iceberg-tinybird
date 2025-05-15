@@ -1,0 +1,24 @@
+DESCRIPTION >
+    Copy pipe that exports GitHub events filtered by date range to a target datasource
+
+NODE github_events_filtered
+SQL >
+    %
+    SELECT 
+        type as event_type,
+        actor.login as actor_login,
+        repo.name as repo_name,
+        toDateTime64(created_at, 3) as created_at,
+        action as action,
+        number as number
+    FROM iceberg('s3://tinybird-gharchive/iceberg/db/github_events', {{tb_secret('aws_access_key_id')}}, {{tb_secret('aws_secret_access_key')}})
+    WHERE 
+    {% if defined(from_date) and defined(to_date) %}
+        created_at > {{DateTime(from_date)}}
+        and created at <= {{DateTime(to_date)}}
+    {% else %}
+        created_at > (select max(created_at) from github_events_rt)
+    {% end %}
+
+TYPE COPY
+TARGET_DATASOURCE github_events_rt
