@@ -10,4 +10,4 @@ ENGINE_TTL toDate(created_at) + INTERVAL 1 MONTH
 ENGINE_SORTING_KEY created_at
 
 FORWARD_QUERY > 
-  SELECT CAST(event_type, 'Nullable(String)') AS event_type, CAST(actor_login, 'Nullable(String)') AS actor_login, CAST(repo_name, 'Nullable(String)') AS repo_name, CAST(created_at, 'DateTime64(3,'UTC')') AS created_at, CAST(action, 'Nullable(String)') AS action
+  SELECT CAST(event_type, 'Nullable(String)') AS event_type, CAST(actor_login, 'Nullable(String)') AS actor_login, CAST(repo_name, 'Nullable(String)') AS repo_name, created_at, CAST(action, 'Nullable(String)') AS action
