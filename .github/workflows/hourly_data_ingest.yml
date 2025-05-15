@@ -35,8 +35,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install tinybird-cli
-          pip install -r gharchive-to-iceberg/requirements.txt
+          curl https://tinybird.co | sh
+          pip install -e gharchive-to-iceberg
       
       - name: Make script executable
         run: chmod +x gharchive-to-iceberg/ingest_missing_hours.sh
