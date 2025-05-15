@@ -1,0 +1,54 @@
+name: Hourly GitHub Archive Data Ingest
+
+on:
+  # schedule:
+  #   # Run at minute 10 of every hour
+  #   - cron: '10 * * * *'
+  workflow_dispatch:  # Allow manual triggering
+    inputs:
+      dry_run:
+        description: 'Run in dry-run mode (no data will be written)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  ingest-github-events:
+    runs-on: ubuntu-latest
+    
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: eu-west-1
+      TINYBIRD_TOKEN: ${{ secrets.TINYBIRD_TOKEN }}
+      TINYBIRD_HOST: ${{ secrets.TINYBIRD_HOST }}
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install tinybird-cli
+          pip install -r gharchive-to-iceberg/requirements.txt
+      
+      - name: Make script executable
+        run: chmod +x gharchive-to-iceberg/ingest_missing_hours.sh
+        
+      - name: Run data ingestion script (normal mode)
+        if: ${{ !inputs.dry_run }}
+        run: |
+          cd gharchive-to-iceberg
+          ./ingest_missing_hours.sh
+          
+      - name: Run data ingestion script (dry-run mode)
+        if: ${{ inputs.dry_run }}
+        run: |
+          cd gharchive-to-iceberg
+          ./ingest_missing_hours.sh --dry-run 

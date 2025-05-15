@@ -16,7 +16,7 @@ SQL >
         created_at > {{DateTime(from_date)}}
         and created at <= {{DateTime(to_date)}}
     {% else %}
-        created_at > (select max(created_at) from github_events)
+        created_at > (select last_date from last_github_event_date)
     {% end %}
 
 TYPE COPY
