@@ -22,4 +22,4 @@ SQL >
 TYPE COPY
 TARGET_DATASOURCE github_events_rt
 COPY_MODE append
-COPY_SCHEDULE 15 * * * *
+# COPY_SCHEDULE 15 * * * *
