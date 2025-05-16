@@ -11,3 +11,6 @@ SCHEMA >
 ENGINE "AggregatingMergeTree"
 ENGINE_PARTITION_KEY "toYYYYMM(date)"
 ENGINE_SORTING_KEY "event_type, date, repo_name"
+
+FORWARD_QUERY > 
+    SELECT date, repo_name, event_type, count, defaultValueOfTypeName('AggregateFunction(uniqExact,Nullable(String))') AS actor_count
