@@ -5,11 +5,11 @@ NODE watch_events_count
 SQL >
     SELECT 
         toDate(created_at) as date,
+        countState() as count,
         repo_name,
-        countState() as watch_count
+        event_type
     FROM github_events_rt
-    WHERE event_type = 'WatchEvent'
-    GROUP BY date, repo_name
+    GROUP BY date, repo_name, event_type
 
 TYPE MATERIALIZED
 DATASOURCE github_events_by_day
