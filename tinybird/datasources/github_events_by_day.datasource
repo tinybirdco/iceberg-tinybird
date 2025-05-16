@@ -5,8 +5,12 @@ SCHEMA >
     `date` Date,
     `repo_name` String,
     `event_type` String,
-    `count` AggregateFunction(count)
+    `count` AggregateFunction(count),
+    `actor_count` AggregateFunction(uniqExact, Nullable(String))
 
 ENGINE "AggregatingMergeTree"
 ENGINE_PARTITION_KEY "toYYYYMM(date)"
 ENGINE_SORTING_KEY "event_type, date, repo_name"
+
+FORWARD_QUERY > 
+    SELECT date, repo_name, event_type, count, defaultValueOfTypeName('AggregateFunction(uniqExact,Nullable(String))') AS actor_count

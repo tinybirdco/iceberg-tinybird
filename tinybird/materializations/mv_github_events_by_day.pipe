@@ -6,6 +6,7 @@ SQL >
     SELECT 
         toDate(created_at) as date,
         countState() as count,
+        uniqExactState(actor_login) as actor_count,
         repo_name,
         event_type
     FROM github_events
