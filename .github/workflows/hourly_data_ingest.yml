@@ -2,7 +2,7 @@ name: Hourly GitHub Archive Data Ingest
 
 on:
   schedule:
-    Run at minute 5 of every hour
+    # Run at minute 5 of every hour
     - cron: '5 * * * *'
   workflow_dispatch:  # Allow manual triggering
     inputs:
