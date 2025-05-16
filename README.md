@@ -10,4 +10,3 @@ source env/bin/activate
 pip install -e .
 python -m src.github_archive_to_iceberg --date 2011-02-12
 ```
-
