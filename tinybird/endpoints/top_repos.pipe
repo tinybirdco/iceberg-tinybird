@@ -5,7 +5,7 @@ SQL >
     %
     SELECT 
         {% if defined(group_by) %}
-        columns(group_by),
+        {{columns(group_by)}},
         {% end %}
         countMerge(count) as count
     FROM github_events_by_day
