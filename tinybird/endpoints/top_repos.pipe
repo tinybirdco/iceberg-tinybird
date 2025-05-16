@@ -1,0 +1,26 @@
+TOKEN read_token READ
+
+NODE endpoint
+SQL >
+    %
+    SELECT 
+        {% if defined(group_by) %}
+        columns(group_by),
+        {% end %}
+        countMerge(count) as count
+    FROM github_events_by_day
+    WHERE 
+        date BETWEEN {{Date(start_date, '2025-04-12')}} AND {{Date(end_date, '2025-05-16')}}
+        {% if defined(repo_names) %}
+        and repo_name in {{Array(repo_names)}}
+        {% end %}
+        {% if defined(event_types) %}
+        and event_type in {{Array(event_types)}}
+        {% end %}
+    {% if defined(group_by) %}
+        GROUP BY {{columns(group_by)}}
+    {% end %}
+    ORDER BY count DESC
+    LIMIT {{Int32(limit, 10)}}
+
+TYPE endpoint

@@ -4,8 +4,9 @@ DESCRIPTION >
 SCHEMA >
     `date` Date,
     `repo_name` String,
-    `watch_count` AggregateFunction(count)
+    `event_type` String,
+    `count` AggregateFunction(count)
 
 ENGINE "AggregatingMergeTree"
 ENGINE_PARTITION_KEY "toYYYYMM(date)"
-ENGINE_SORTING_KEY "date, repo_name"
+ENGINE_SORTING_KEY "event_type, date, repo_name"
