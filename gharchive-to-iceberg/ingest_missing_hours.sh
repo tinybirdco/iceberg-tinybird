@@ -31,6 +31,9 @@ next_hour() {
   local date_str="$1"
   local hour="$2"
   
+  # Remove leading zeros to avoid octal interpretation
+  hour=$(echo "$hour" | sed 's/^0*//')
+  
   # Increment the hour
   hour=$((hour + 1))
   
@@ -46,13 +49,17 @@ next_hour() {
     fi
   fi
   
-  echo "$date_str $hour"
+  # Format hour with leading zero if needed
+  printf "%s %02d" "$date_str" "$hour"
 }
 
 # Function to convert date and hour to epoch seconds
 to_epoch() {
   local date_str="$1"
   local hour="$2"
+  
+  # Remove leading zeros to avoid octal interpretation
+  hour=$(echo "$hour" | sed 's/^0*//')
   
   if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS
