@@ -5,6 +5,7 @@ import sys
 import argparse
 import tempfile
 import requests
+import datetime
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import lit, col, to_json
 
@@ -318,8 +319,9 @@ def save_to_iceberg(spark, df, date_str, hour=None):
 
 def process_single_hour(spark, date_str, hour, temp_dir, force_download=False):
     """Process a single hour of GitHub Archive data."""
-    url = f"https://data.gharchive.org/{date_str}-{hour}.json.gz"
-    download_path = os.path.join(temp_dir, f"{date_str}-{hour}.json.gz")
+    hour_formatted = f"{hour:02d}"  # Ensure hour is properly zero-padded
+    url = f"https://data.gharchive.org/{date_str}-{hour_formatted}.json.gz"
+    download_path = os.path.join(temp_dir, f"{date_str}-{hour_formatted}.json.gz")
     
     # Delete file if force_download is True and file exists
     if force_download and os.path.exists(download_path):
@@ -327,13 +329,13 @@ def process_single_hour(spark, date_str, hour, temp_dir, force_download=False):
         print(f"Deleted existing file {download_path} for forced download")
     
     if download_file(url, download_path):
-        df = process_file(spark, download_path, date_str, hour)
+        df = process_file(spark, download_path, date_str, hour_formatted)
         
         if df is not None:
             success = save_to_iceberg(spark, df, date_str, hour)
             return success
     else:
-        print(f"Failed to download {date_str}-{hour}")
+        print(f"Failed to download {date_str}-{hour_formatted}")
     
     return False
 
@@ -347,8 +349,9 @@ def process_full_day(spark, date_str, temp_dir, force_download=False):
     try:
         # First, download all files
         for hour in range(24):
-            url = f"https://data.gharchive.org/{date_str}-{hour}.json.gz"
-            download_path = os.path.join(temp_dir, f"{date_str}-{hour}.json.gz")
+            hour_formatted = f"{hour:02d}"  # Ensure hour is properly zero-padded
+            url = f"https://data.gharchive.org/{date_str}-{hour_formatted}.json.gz"
+            download_path = os.path.join(temp_dir, f"{date_str}-{hour_formatted}.json.gz")
             
             # Delete file if force_download is True and file exists
             if force_download and os.path.exists(download_path):
@@ -358,7 +361,7 @@ def process_full_day(spark, date_str, temp_dir, force_download=False):
             if download_file(url, download_path):
                 downloaded_files.append((download_path, hour))
             else:
-                print(f"Skipping hour {hour} due to download error")
+                print(f"Skipping hour {hour_formatted} due to download error")
         
         if not downloaded_files:
             print("No files were successfully downloaded")
@@ -389,13 +392,13 @@ def process_full_day(spark, date_str, temp_dir, force_download=False):
             batch_dfs = []
             for idx in range(start_idx, end_idx):
                 file_path, hour = downloaded_files[idx]
-                df = process_file(spark, file_path, date_str, hour)
+                df = process_file(spark, file_path, date_str, f"{hour:02d}")
                 if df is not None:
                     # Cache DataFrame to avoid reloading from file
                     df = df.cache()
                     batch_dfs.append(df)
                 else:
-                    print(f"Skipping hour {hour} due to processing error")
+                    print(f"Skipping hour {hour:02d} due to processing error")
             
             if not batch_dfs:
                 print(f"No data in batch {batch_idx+1}, skipping")
@@ -434,17 +437,96 @@ def process_full_day(spark, date_str, temp_dir, force_download=False):
         traceback.print_exc()
         return False
 
+def get_date_range(from_date, to_date):
+    """Generate a list of dates between from_date and to_date (inclusive)."""
+    try:
+        start_date = datetime.datetime.strptime(from_date, "%Y-%m-%d").date()
+        end_date = datetime.datetime.strptime(to_date, "%Y-%m-%d").date()
+        
+        date_list = []
+        current_date = start_date
+        
+        while current_date <= end_date:
+            date_list.append(current_date.strftime("%Y-%m-%d"))
+            current_date += datetime.timedelta(days=1)
+        
+        return date_list
+    except Exception as e:
+        print(f"Error generating date range: {e}")
+        return []
+
+def process_date_range(spark, from_date, to_date, temp_dir, force_download=False):
+    """Process a range of dates, reusing the same Spark session."""
+    print(f"Processing date range from {from_date} to {to_date}")
+    
+    # Generate list of dates
+    date_list = get_date_range(from_date, to_date)
+    if not date_list:
+        print("Failed to generate date list. Please check the date formats (YYYY-MM-DD).")
+        return False
+        
+    print(f"Will process {len(date_list)} days: {', '.join(date_list)}")
+    
+    # Enable garbage collection to help with memory management
+    import gc
+    
+    # Process each date
+    total_days_processed = 0
+    
+    for date_str in date_list:
+        print(f"\n{'='*80}\nProcessing date: {date_str}\n{'='*80}")
+        
+        # Process all hours for this day using the existing function
+        success = process_full_day(spark, date_str, temp_dir, force_download)
+        
+        if success:
+            total_days_processed += 1
+        else:
+            print(f"WARNING: Failed to process date {date_str}")
+        
+        # Force garbage collection after each day
+        gc.collect()
+    
+    print(f"\nCompleted processing date range: {from_date} to {to_date}")
+    print(f"Successfully processed {total_days_processed} out of {len(date_list)} days")
+    
+    return total_days_processed > 0
+
 def main():
     # Parse command line args
     parser = argparse.ArgumentParser(description='Load GitHub Archive data to Iceberg')
-    parser.add_argument('--date', required=True, help='Date to process in YYYY-MM-DD format')
-    parser.add_argument('--hour', type=int, help='Hour to process (0-23). If not provided, all 24 hours will be processed.')
+    parser.add_argument('--date', help='Single date to process in YYYY-MM-DD format')
+    parser.add_argument('--hour', type=int, help='Hour to process (0-23). Only used with --date')
+    parser.add_argument('--from_date', help='Start date for range processing in YYYY-MM-DD format')
+    parser.add_argument('--to_date', help='End date for range processing in YYYY-MM-DD format')
     parser.add_argument('--progress', action='store_true', help='Show detailed progress information')
     parser.add_argument('--force-download', action='store_true', help='Force download even if files exist')
     args = parser.parse_args()
     
+    # Verify input parameters
+    single_date = bool(args.date)
+    date_range = bool(args.from_date and args.to_date)
+    
+    if not (single_date or date_range):
+        print("ERROR: You must specify either --date or both --from_date and --to_date")
+        parser.print_help()
+        sys.exit(1)
+    
+    if single_date and date_range:
+        print("ERROR: Cannot use both --date and --from_date/--to_date together")
+        parser.print_help()
+        sys.exit(1)
+    
+    if args.hour is not None and not single_date:
+        print("ERROR: --hour can only be used with --date")
+        parser.print_help()
+        sys.exit(1)
+    
+    # Store parameters
     date_str = args.date
     hour = args.hour
+    from_date = args.from_date
+    to_date = args.to_date
     show_progress = args.progress
     force_download = args.force_download
     
@@ -457,9 +539,14 @@ def main():
     print(f"AWS Access: {'Configured' if AWS_ACCESS_KEY else 'MISSING'}")
     print(f"AWS Secret: {'Configured' if AWS_SECRET_KEY else 'MISSING'}")
     print(f"Temp Dir:   {TMP_DIR}")
+    
+    if single_date:
+        print(f"Mode:       Single date ({date_str}{' hour ' + str(hour) if hour is not None else ' all hours'})")
+    else:
+        print(f"Mode:       Date range ({from_date} to {to_date})")
     print()
     
-    # Initialize Spark
+    # Initialize Spark once for the entire process
     spark = initialize_spark()
     
     # Add progress listener if requested
@@ -472,12 +559,16 @@ def main():
         temp_dir = TMP_DIR
         print(f"Using temporary directory: {temp_dir}")
         
-        if hour is not None:
-            # Process a single hour
-            process_single_hour(spark, date_str, hour, temp_dir, force_download)
-        else:
-            # Process all hours of the day
-            process_full_day(spark, date_str, temp_dir, force_download)
+        if single_date:
+            if hour is not None:
+                # Process a single hour
+                process_single_hour(spark, date_str, hour, temp_dir, force_download)
+            else:
+                # Process all hours of the day
+                process_full_day(spark, date_str, temp_dir, force_download)
+        elif date_range:
+            # Process a range of dates
+            process_date_range(spark, from_date, to_date, temp_dir, force_download)
             
     except KeyboardInterrupt:
         print("\nScript interrupted.")

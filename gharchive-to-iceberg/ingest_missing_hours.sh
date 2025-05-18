@@ -44,8 +44,8 @@ next_hour() {
       # macOS
       date_str=$(date -j -v+1d -f "%Y-%m-%d" "$date_str" "+%Y-%m-%d")
     else
-      # Linux
-      date_str=$(date -d "$date_str + 1 day" "+%Y-%m-%d")
+      # Linux - fix: properly format the date string argument
+      date_str=$(date -d "$date_str +1 day" "+%Y-%m-%d")
     fi
   fi
   
@@ -61,11 +61,14 @@ to_epoch() {
   # Remove leading zeros to avoid octal interpretation
   hour=$(echo "$hour" | sed 's/^0*//')
   
+  # Format hour with leading zero
+  hour=$(printf "%02d" "$hour")
+  
   if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS
     date -j -f "%Y-%m-%d %H" "$date_str $hour" +%s
   else
-    # Linux
+    # Linux - ensure proper formatting
     date -d "$date_str $hour:00:00" +%s
   fi
 }
