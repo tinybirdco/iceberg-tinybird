@@ -120,11 +120,24 @@ while true; do
     break
   fi
   
+  # Remove leading zeros from hour for URL formatting (GitHub Archive format)
+  URL_HOUR=$(echo "$PROCESSING_HOUR" | sed 's/^0*//')
+  
+  # Ensure hour 0 is handled correctly (should be '0' not empty string)
+  if [ -z "$URL_HOUR" ]; then
+    URL_HOUR="0"
+  fi
+  
+  # Format file URL with single-digit hour
+  FILE_URL="https://data.gharchive.org/${PROCESSING_DATE}-${URL_HOUR}.json.gz"
+  
   if [ "$DRY_RUN" = true ]; then
     echo "[DRY RUN] Would process: $PROCESSING_DATE hour $PROCESSING_HOUR"
+    echo "[DRY RUN] Would download: $FILE_URL"
   else
     echo "Processing: $PROCESSING_DATE hour $PROCESSING_HOUR"
-    python -m src.github_archive_to_iceberg --date "$PROCESSING_DATE" --hour "$PROCESSING_HOUR"
+    echo "Downloading: $FILE_URL"
+    python -m src.github_archive_to_iceberg --date "$PROCESSING_DATE" --hour "$URL_HOUR"
   fi
   
   # Move to next hour
