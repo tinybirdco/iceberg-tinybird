@@ -84,6 +84,20 @@ tb endpoint data top_repos --event_types 'WatchEvent' --group_by 'event_type'
 
 3. Deploy to cloud
 
+Deploy to cloud with the Tinybird CLI:
+
+```sh
+# create the env variables in Tinybird Cloud
+tb --cloud secret set aws_access_key_id {{your_aws_access_key_id}}
+tb --cloud secret set aws_secret_access_key {{your_aws_secret_access_key}}
+# Deploy
+tb --cloud deploy
+# Sync data to cloud
+tb --cloud copy run cp_github_events_historic --param from_date='2020-01-01 00:00:00' to_date='2025-05-15 00:00:00' --wait
+```
+
+### GitHub Actions
+
 The project contains GitHub actions for CI and CD. Configure these variables as secrets in your GitHub repository:
 
 ```
@@ -110,14 +124,6 @@ api: https://api.europe-west2.gcp.tinybird.co <-- THIS IS YOUR TINYBIRD_HOST
 ui: https://cloud.tinybird.co/gcp/europe-west2/github_iceberg
 ```
 
-Alternatively you can deploy to cloud with the Tinybird CLI:
+On each pull request the CI GitHub action validates the project builds, on merge the project is automatically deployed to cloud.
 
-```sh
-# create the env variables in Tinybird Cloud
-tb --cloud secret set aws_access_key_id {{your_aws_access_key_id}}
-tb --cloud secret set aws_secret_access_key {{your_aws_secret_access_key}}
-# Deploy
-tb --cloud deploy
-# Sync data to cloud
-tb --cloud copy run cp_github_events_historic --param from_date='2020-01-01 00:00:00' to_date='2025-05-15 00:00:00' --wait
-```
+There's an additional `hourly_data_ingest.yml` GitHub actions that runs hourly to synchronize new GitHub events from `gharchive.org` to the Iceberg table and to Tinybird.
