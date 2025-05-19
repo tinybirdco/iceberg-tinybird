@@ -1,13 +1,16 @@
 ## Iceberg Tinybird
 
-This repository contains:
+This repository contains a working project to synchronize the GitHub archive to Iceberg and use Tinybird for real-time analytics over Iceberg data. Read the full article [here](https://tinybird.co/blog-posts/real-time-analytics-on-apache-iceberg-with-tinybird).
 
+Contents:
 - `gharchive-to-iceberg`: an Apache Spark project to synchronize the GitHub archive to an Iceberg table in S3
 - `tinybird`: a Tinybird project to synchronize Iceberg tables to Tinybird for real-time analytics
 
 ### How to use
 
-1. Push data from gharchive.org to an Iceberg table in S3
+Fork this repository and follow the next steps.
+
+1. Push data from [gharchive.org](https://www.gharchive.org/) to an Iceberg table in S3
 
 ```sh
 cp .env.example .env # and fill the env variables
@@ -18,7 +21,7 @@ pip install -e .
 python -m src.github_archive_to_iceberg --date 2011-02-12
 ```
 
-This will create an Apache Iceberg table in the S3 bucket in the `.env` file. For instance for these variables:
+This will create an Apache Iceberg table in the S3 bucket speciefied in the `.env` file. For instance given these variables:
 
 ```
 export ICEBERG_WAREHOUSE=s3a://your-bucket/iceberg/
@@ -26,7 +29,7 @@ export ICEBERG_DATABASE=your_db
 export ICEBERG_TABLE=your_table
 ```
 
-Your Apache Iceberg table is in `s3://your-bucket/iceberg/your_db/your_table`
+Your Apache Iceberg table is created in `s3://your-bucket/iceberg/your_db/your_table`
 
 2. Configure the Tinybird project locally
 
@@ -107,4 +110,14 @@ api: https://api.europe-west2.gcp.tinybird.co <-- THIS IS YOUR TINYBIRD_HOST
 ui: https://cloud.tinybird.co/gcp/europe-west2/github_iceberg
 ```
 
-Alternatively you can deploy to cloud with `tb --cloud deploy`
+Alternatively you can deploy to cloud with the Tinybird CLI:
+
+```sh
+# create the env variables in Tinybird Cloud
+tb --cloud secret set aws_access_key_id {{your_aws_access_key_id}}
+tb --cloud secret set aws_secret_access_key {{your_aws_secret_access_key}}
+# Deploy
+tb --cloud deploy
+# Sync data to cloud
+tb --cloud copy run cp_github_events_historic --param from_date='2020-01-01 00:00:00' to_date='2025-05-15 00:00:00' --wait
+```
