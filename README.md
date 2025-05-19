@@ -10,7 +10,7 @@ Contents:
 
 Fork this repository and follow the next steps.
 
-1. Push data from [gharchive.org](https://www.gharchive.org/) to an Iceberg table in S3
+**1. Push data from [gharchive.org](https://www.gharchive.org/) to an Iceberg table in S3**
 
 ```sh
 cp .env.example .env # and fill the env variables
@@ -31,7 +31,7 @@ export ICEBERG_TABLE=your_table
 
 Your Apache Iceberg table is created in `s3://your-bucket/iceberg/your_db/your_table`
 
-2. Configure the Tinybird project locally
+**2. Configure the Tinybird project locally**
 
 ```sh
 cd tinybird
@@ -82,7 +82,7 @@ tb endpoint data top_repos --event_types 'WatchEvent' --group_by 'event_type'
 ```
 
 
-3. Deploy to cloud
+**3. Deploy to cloud**
 
 Deploy to cloud with the Tinybird CLI:
 
