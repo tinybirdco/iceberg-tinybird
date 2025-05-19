@@ -96,6 +96,8 @@ tb --cloud deploy
 tb --cloud copy run cp_github_events_historic --param from_date='2020-01-01 00:00:00' to_date='2025-05-15 00:00:00' --wait
 ```
 
+Read the [Tinybird project README.md](tinybird/README.md) for a description of the project.
+
 ### GitHub Actions
 
 The project contains GitHub actions for CI and CD. Configure these variables as secrets in your GitHub repository:
