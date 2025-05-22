@@ -1,0 +1,14 @@
+NODE backfill
+SQL >
+    %
+    SELECT
+       *
+    FROM iceberg(
+        's3://redpanda-iceberg/redpanda/key_value',
+        {{ tb_secret('AWS_KEY') }},
+        {{ tb_secret('AWS_SECRET') }}
+    )
+    WHERE ts between {{DateTime(from_date)}} and {{DateTime(to_date)}}
+
+TYPE copy
+TARGET_DATASOURCE redpanda_events

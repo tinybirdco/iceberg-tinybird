@@ -1,0 +1,11 @@
+DESCRIPTION >
+    Materialized view for storing aggregated event metrics by minute and event type
+
+SCHEMA >
+    `minute` DateTime,
+    `event_type` String,
+    `event_count` AggregateFunction(count, UInt64)
+
+ENGINE "AggregatingMergeTree"
+ENGINE_PARTITION_KEY "toYYYYMM(minute)"
+ENGINE_SORTING_KEY "minute, event_type"

@@ -1,0 +1,9 @@
+SCHEMA >
+    `user_id` Int32 `json:$.user_id`,
+    `timestamp` DateTime64(3) `json:$.ts`,
+    `event_type` String `json:$.event_type`
+
+KAFKA_CONNECTION_NAME redpanda
+KAFKA_TOPIC key_value
+KAFKA_GROUP_ID topic_0_1747832144
+KAFKA_STORE_RAW_VALUE 'False'

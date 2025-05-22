@@ -1,0 +1,11 @@
+NODE process_events
+SQL >
+    SELECT 
+        toStartOfMinute(timestamp) AS minute,
+        event_type,
+        countState() AS event_count
+    FROM redpanda_events
+    GROUP BY minute, event_type
+
+TYPE materialized
+DATASOURCE event_metrics_mv

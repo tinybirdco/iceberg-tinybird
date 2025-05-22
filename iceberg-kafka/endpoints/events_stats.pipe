@@ -1,0 +1,13 @@
+NODE event_stats_node
+SQL >
+%
+SELECT 
+        minute,
+        event_type,
+        countMerge(event_count) count
+    FROM event_metrics_mv
+    WHERE minute >= {{DateTime(start_time)}} AND minute <= {{DateTime(end_time)}}
+    GROUP BY minute, event_type
+    ORDER BY count DESC
+
+TYPE endpoint
