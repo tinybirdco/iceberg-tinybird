@@ -1,9 +1,9 @@
 name: Hourly GitHub Archive Data Ingest
 
 on:
-  # schedule:
+  schedule:
     # Run at minute 5 of every hour
-    # - cron: '5 * * * *'
+    - cron: '5 * * * *'
   workflow_dispatch:  # Allow manual triggering
     inputs:
       dry_run:
@@ -11,6 +11,26 @@ on:
         required: false
         type: boolean
         default: false
+      from_date:
+        description: 'Start date for manual range (YYYY-MM-DD format)'
+        required: false
+        type: string
+        default: ''
+      from_hour:
+        description: 'Start hour for manual range (0-23)'
+        required: false
+        type: string
+        default: ''
+      to_date:
+        description: 'End date for manual range (YYYY-MM-DD format)'
+        required: false
+        type: string
+        default: ''
+      to_hour:
+        description: 'End hour for manual range (0-23)'
+        required: false
+        type: string
+        default: ''
 
 # Add concurrency control to prevent overlapping runs
 concurrency:
@@ -50,14 +70,32 @@ jobs:
       - name: Run data ingestion script
         run: |
           cd gharchive-to-iceberg
+          
+          # Build command arguments
+          SCRIPT_ARGS=""
+          
           if [ "${{ inputs.dry_run }}" == "true" ]; then
-            echo "Running in dry-run mode"
-            ./ingest_missing_hours.sh --dry-run
-          else
-            echo "Running in normal mode"
-            ./ingest_missing_hours.sh
+            SCRIPT_ARGS="$SCRIPT_ARGS --dry-run"
+          fi
+          
+          # Add manual date range if provided
+          if [ -n "${{ inputs.from_date }}" ] && [ -n "${{ inputs.from_hour }}" ]; then
+            SCRIPT_ARGS="$SCRIPT_ARGS --from-date ${{ inputs.from_date }} --from-hour ${{ inputs.from_hour }}"
             
-            # Only copy data to Tinybird if not in dry-run mode
+            if [ -n "${{ inputs.to_date }}" ] && [ -n "${{ inputs.to_hour }}" ]; then
+              SCRIPT_ARGS="$SCRIPT_ARGS --to-date ${{ inputs.to_date }} --to-hour ${{ inputs.to_hour }}"
+            fi
+            
+            echo "Running with manual date range: $SCRIPT_ARGS"
+          else
+            echo "Running in automatic mode (checking last ingested date)"
+          fi
+          
+          # Execute the script
+          ./ingest_missing_hours.sh $SCRIPT_ARGS
+          
+          # Only copy data to Tinybird if not in dry-run mode
+          if [ "${{ inputs.dry_run }}" != "true" ]; then
             cd ..
             tb --token $TINYBIRD_TOKEN --host $TINYBIRD_HOST --cloud copy run cp_github_events_rt --wait
           fi 
