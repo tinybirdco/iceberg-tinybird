@@ -6,16 +6,20 @@
 #   ./ingest_missing_hours.sh             # Normal mode: process missing hours
 #   ./ingest_missing_hours.sh --dry-run   # Dry run mode: show what would be processed without writing data
 #   ./ingest_missing_hours.sh --from-date YYYY-MM-DD --from-hour HH [--to-date YYYY-MM-DD] [--to-hour HH]  # Manual date range
+#   ./ingest_missing_hours.sh --single-hour --date YYYY-MM-DD --hour HH  # Process single hour only
 
 set -e
 
 # Parse command line arguments
 DRY_RUN=false
 MANUAL_RANGE=false
+SINGLE_HOUR=false
 FROM_DATE=""
 FROM_HOUR=""
 TO_DATE=""
 TO_HOUR=""
+SINGLE_DATE=""
+SINGLE_HOUR_VALUE=""
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -40,9 +44,21 @@ while [[ $# -gt 0 ]]; do
       TO_HOUR="$2"
       shift 2
       ;;
+    --single-hour)
+      SINGLE_HOUR=true
+      shift
+      ;;
+    --date)
+      SINGLE_DATE="$2"
+      shift 2
+      ;;
+    --hour)
+      SINGLE_HOUR_VALUE="$2"
+      shift 2
+      ;;
     *)
       echo "Unknown option: $1"
-      echo "Usage: $0 [--dry-run] [--from-date YYYY-MM-DD --from-hour HH] [--to-date YYYY-MM-DD --to-hour HH]"
+      echo "Usage: $0 [--dry-run] [--from-date YYYY-MM-DD --from-hour HH] [--to-date YYYY-MM-DD --to-hour HH] [--single-hour --date YYYY-MM-DD --hour HH]"
       exit 1
       ;;
   esac
@@ -84,6 +100,26 @@ if [ "$MANUAL_RANGE" = true ]; then
       echo "Error: --to-hour must be between 0 and 23"
       exit 1
     fi
+  fi
+fi
+
+# Validate single hour parameters
+if [ "$SINGLE_HOUR" = true ]; then
+  if [ -z "$SINGLE_DATE" ] || [ -z "$SINGLE_HOUR_VALUE" ]; then
+    echo "Error: --date and --hour are required when using --single-hour mode"
+    exit 1
+  fi
+  
+  # Validate date format (basic check)
+  if ! [[ "$SINGLE_DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+    echo "Error: --date must be in YYYY-MM-DD format"
+    exit 1
+  fi
+  
+  # Validate hour format
+  if ! [[ "$SINGLE_HOUR_VALUE" =~ ^[0-9]{1,2}$ ]] || [ "$SINGLE_HOUR_VALUE" -gt 23 ]; then
+    echo "Error: --hour must be between 0 and 23"
+    exit 1
   fi
 fi
 
@@ -141,55 +177,10 @@ to_epoch() {
   fi
 }
 
-if [ "$MANUAL_RANGE" = true ]; then
-  echo "Using manual date range: $FROM_DATE $FROM_HOUR to $TO_DATE $TO_HOUR"
-  PROCESSING_DATE="$FROM_DATE"
-  PROCESSING_HOUR="$FROM_HOUR"
-  CURRENT_DATE="$TO_DATE"
-  CURRENT_HOUR="$TO_HOUR"
-else
-  echo "Checking last ingested GitHub event date from Tinybird..."
-
-  # Get the last ingested event date from Tinybird
-  LAST_INGESTED=$(tb --token $TINYBIRD_TOKEN --host $TINYBIRD_HOST --cloud --no-version-warning endpoint data last_github_event_date --format json)
-  echo "Tinybird response: $LAST_INGESTED"
-
-  # Extract the last date using grep and cut
-  LAST_DATE_TIME=$(echo "$LAST_INGESTED" | grep -o '"last_date": "[^"]*"' | cut -d'"' -f4)
-  echo "Last ingested date: $LAST_DATE_TIME"
-
-  # Parse the date and extract components
-  LAST_DATE=$(echo "$LAST_DATE_TIME" | cut -d' ' -f1)
-  LAST_TIME=$(echo "$LAST_DATE_TIME" | cut -d' ' -f2)
-  LAST_HOUR=$(echo "$LAST_TIME" | cut -d':' -f1)
-  echo "Last date: $LAST_DATE, Last hour: $LAST_HOUR"
-
-  # Get current UTC time (rounded to the latest completed hour)
-  CURRENT_UTC=$(date -u +"%Y-%m-%d %H")
-  CURRENT_DATE=$(echo "$CURRENT_UTC" | cut -d' ' -f1)
-  CURRENT_HOUR=$(echo "$CURRENT_UTC" | cut -d' ' -f2)
-  echo "Current date: $CURRENT_DATE, Current hour: $CURRENT_HOUR (UTC)"
-
-  # Start with the hour after the last ingested
-  NEXT_HOUR_DATA=$(next_hour "$LAST_DATE" "$LAST_HOUR")
-  PROCESSING_DATE=$(echo "$NEXT_HOUR_DATA" | cut -d' ' -f1)
-  PROCESSING_HOUR=$(echo "$NEXT_HOUR_DATA" | cut -d' ' -f2)
-fi
-
-echo "Starting to process from: $PROCESSING_DATE hour $PROCESSING_HOUR"
-
-# Process each hour until we reach end time
-PROCESSED_COUNT=0
-while true; do
-  # Convert processing time to epoch for comparison
-  PROCESSING_EPOCH=$(to_epoch "$PROCESSING_DATE" "$PROCESSING_HOUR")
-  END_EPOCH=$(to_epoch "$CURRENT_DATE" "$CURRENT_HOUR")
-  
-  # Break if we've reached or exceeded end time
-  if [ "$PROCESSING_EPOCH" -ge "$END_EPOCH" ]; then
-    echo "Reached end time, stopping."
-    break
-  fi
+if [ "$SINGLE_HOUR" = true ]; then
+  echo "Processing single hour: $SINGLE_DATE hour $SINGLE_HOUR_VALUE"
+  PROCESSING_DATE="$SINGLE_DATE"
+  PROCESSING_HOUR="$SINGLE_HOUR_VALUE"
   
   # Remove leading zeros from hour for URL formatting (GitHub Archive format)
   URL_HOUR=$(echo "$PROCESSING_HOUR" | sed 's/^0*//')
@@ -211,20 +202,97 @@ while true; do
     python -m src.github_archive_to_iceberg --date "$PROCESSING_DATE" --hour "$URL_HOUR"
   fi
   
-  # Move to next hour
-  NEXT_HOUR_DATA=$(next_hour "$PROCESSING_DATE" "$PROCESSING_HOUR")
-  PROCESSING_DATE=$(echo "$NEXT_HOUR_DATA" | cut -d' ' -f1)
-  PROCESSING_HOUR=$(echo "$NEXT_HOUR_DATA" | cut -d' ' -f2)
-  
-  PROCESSED_COUNT=$((PROCESSED_COUNT + 1))
-done
-
-if [ $PROCESSED_COUNT -eq 0 ]; then
-  echo "No new hours to process. Already up to date."
-else
   if [ "$DRY_RUN" = true ]; then
-    echo "[DRY RUN] Would have processed $PROCESSED_COUNT hours of GitHub event data."
+    echo "[DRY RUN] Would have processed 1 hour of GitHub event data."
   else
-    echo "Successfully processed $PROCESSED_COUNT hours of GitHub event data."
+    echo "Successfully processed 1 hour of GitHub event data."
+  fi
+else
+  if [ "$MANUAL_RANGE" = true ]; then
+    echo "Using manual date range: $FROM_DATE $FROM_HOUR to $TO_DATE $TO_HOUR"
+    PROCESSING_DATE="$FROM_DATE"
+    PROCESSING_HOUR="$FROM_HOUR"
+    CURRENT_DATE="$TO_DATE"
+    CURRENT_HOUR="$TO_HOUR"
+  else
+    echo "Checking last ingested GitHub event date from Tinybird..."
+
+    # Get the last ingested event date from Tinybird
+    LAST_INGESTED=$(tb --token $TINYBIRD_TOKEN --host $TINYBIRD_HOST --cloud --no-version-warning endpoint data last_github_event_date --format json)
+    echo "Tinybird response: $LAST_INGESTED"
+
+    # Extract the last date using grep and cut
+    LAST_DATE_TIME=$(echo "$LAST_INGESTED" | grep -o '"last_date": "[^"]*"' | cut -d'"' -f4)
+    echo "Last ingested date: $LAST_DATE_TIME"
+
+    # Parse the date and extract components
+    LAST_DATE=$(echo "$LAST_DATE_TIME" | cut -d' ' -f1)
+    LAST_TIME=$(echo "$LAST_DATE_TIME" | cut -d' ' -f2)
+    LAST_HOUR=$(echo "$LAST_TIME" | cut -d':' -f1)
+    echo "Last date: $LAST_DATE, Last hour: $LAST_HOUR"
+
+    # Get current UTC time (rounded to the latest completed hour)
+    CURRENT_UTC=$(date -u +"%Y-%m-%d %H")
+    CURRENT_DATE=$(echo "$CURRENT_UTC" | cut -d' ' -f1)
+    CURRENT_HOUR=$(echo "$CURRENT_UTC" | cut -d' ' -f2)
+    echo "Current date: $CURRENT_DATE, Current hour: $CURRENT_HOUR (UTC)"
+
+    # Start with the hour after the last ingested
+    NEXT_HOUR_DATA=$(next_hour "$LAST_DATE" "$LAST_HOUR")
+    PROCESSING_DATE=$(echo "$NEXT_HOUR_DATA" | cut -d' ' -f1)
+    PROCESSING_HOUR=$(echo "$NEXT_HOUR_DATA" | cut -d' ' -f2)
+  fi
+
+  echo "Starting to process from: $PROCESSING_DATE hour $PROCESSING_HOUR"
+
+  # Process each hour until we reach end time
+  PROCESSED_COUNT=0
+  while true; do
+    # Convert processing time to epoch for comparison
+    PROCESSING_EPOCH=$(to_epoch "$PROCESSING_DATE" "$PROCESSING_HOUR")
+    END_EPOCH=$(to_epoch "$CURRENT_DATE" "$CURRENT_HOUR")
+    
+    # Break if we've reached or exceeded end time
+    if [ "$PROCESSING_EPOCH" -ge "$END_EPOCH" ]; then
+      echo "Reached end time, stopping."
+      break
+    fi
+    
+    # Remove leading zeros from hour for URL formatting (GitHub Archive format)
+    URL_HOUR=$(echo "$PROCESSING_HOUR" | sed 's/^0*//')
+    
+    # Ensure hour 0 is handled correctly (should be '0' not empty string)
+    if [ -z "$URL_HOUR" ]; then
+      URL_HOUR="0"
+    fi
+    
+    # Format file URL with single-digit hour
+    FILE_URL="https://data.gharchive.org/${PROCESSING_DATE}-${URL_HOUR}.json.gz"
+    
+    if [ "$DRY_RUN" = true ]; then
+      echo "[DRY RUN] Would process: $PROCESSING_DATE hour $PROCESSING_HOUR"
+      echo "[DRY RUN] Would download: $FILE_URL"
+    else
+      echo "Processing: $PROCESSING_DATE hour $PROCESSING_HOUR"
+      echo "Downloading: $FILE_URL"
+      python -m src.github_archive_to_iceberg --date "$PROCESSING_DATE" --hour "$URL_HOUR"
+    fi
+    
+    # Move to next hour
+    NEXT_HOUR_DATA=$(next_hour "$PROCESSING_DATE" "$PROCESSING_HOUR")
+    PROCESSING_DATE=$(echo "$NEXT_HOUR_DATA" | cut -d' ' -f1)
+    PROCESSING_HOUR=$(echo "$NEXT_HOUR_DATA" | cut -d' ' -f2)
+    
+    PROCESSED_COUNT=$((PROCESSED_COUNT + 1))
+  done
+
+  if [ $PROCESSED_COUNT -eq 0 ]; then
+    echo "No new hours to process. Already up to date."
+  else
+    if [ "$DRY_RUN" = true ]; then
+      echo "[DRY RUN] Would have processed $PROCESSED_COUNT hours of GitHub event data."
+    else
+      echo "Successfully processed $PROCESSED_COUNT hours of GitHub event data."
+    fi
   fi
 fi 
